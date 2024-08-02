@@ -33,7 +33,7 @@ NUM_PARTICLES = 3000
 
 CLOCK = 2000
 
-def generate_particles_and_interactions():
+def generate_particles_and_interactions(custom_interaction_table=None):
     particle_types = {}
     for i in range(NUM_PARTICLE_TYPES):
         particle_type = chr(ord('A') + i)
@@ -44,23 +44,22 @@ def generate_particles_and_interactions():
         )
         particle_types[particle_type] = {'color': color}
 
-    interaction_table = np.zeros(
-        (NUM_PARTICLE_TYPES, NUM_PARTICLE_TYPES), dtype=np.float64)
-    for i in range(NUM_PARTICLE_TYPES):
-        for j in range(NUM_PARTICLE_TYPES):
-            interaction_table[i, j] = random.uniform(
-                FORCE_DIFF * (-1), FORCE_DIFF)
+    if custom_interaction_table is None or custom_interaction_table.size == 0:
+        interaction_table = np.zeros((NUM_PARTICLE_TYPES, NUM_PARTICLE_TYPES), dtype=np.float64)
+        for i in range(NUM_PARTICLE_TYPES):
+            for j in range(NUM_PARTICLE_TYPES):
+                interaction_table[i, j] = random.uniform(FORCE_DIFF * (-1), FORCE_DIFF)
+    else:
+        interaction_table = custom_interaction_table
 
     particles = np.zeros((NUM_PARTICLES, 6), dtype=np.float64)
     for i in range(NUM_PARTICLES):
         ptype = random.choice(list(particle_types.keys()))
         ptype_index = ord(ptype) - ord('A')
         x = random.randint(PARTICLE_RADIUS, WIDTH - PARTICLE_RADIUS)
-        y = random.randint(PARTICLE_RADIUS, HEIGHT -
-                           PARTICLE_RADIUS - BUTTON_HEIGHT - PADDING)
+        y = random.randint(PARTICLE_RADIUS, HEIGHT - PARTICLE_RADIUS - BUTTON_HEIGHT - PADDING)
         color = particle_types[ptype]['color']
-        particles[i] = [x, y, 0, 0, ptype_index,
-                        color[0] * 65536 + color[1] * 256 + color[2]]
+        particles[i] = [x, y, 0, 0, ptype_index, color[0] * 65536 + color[1] * 256 + color[2]]
         
     print("\nTabela de Interações:")
     for i in range(NUM_PARTICLE_TYPES):
@@ -112,7 +111,7 @@ def calculate_forces(particles, interaction_table, amplifier, collision_damping)
         particles[i, 3] += fy
 
         # Limitar a velocidade das partículas para evitar movimentos extremos
-        max_speed = 50  # ajuste conforme necessário
+        max_speed = 20  # ajuste conforme necessário
         speed = np.hypot(particles[i, 2], particles[i, 3])
         if speed > max_speed:
             particles[i, 2] = (particles[i, 2] / speed) * max_speed
@@ -172,7 +171,16 @@ def draw_slider(win, x, y, width, height, value, min_value, max_value, label):
 def main():
     global FORCE_DIFF, AMPLIFIER, COLLISION_DAMPING
 
-    particles, interaction_table = generate_particles_and_interactions()
+    # CELULAS EXPLOSIVAS
+    custom_interaction_table = np.array([
+        [-1.09908462, 0.03605344, 1.0354453, -0.68439392, 0.16205739],
+        [0.52110612, -1.46853399, 1.22345083, 1.44403716, -0.77540734],
+        [1.45091561, -0.5324493, 1.73014703, 0.26964334, 1.83240487],
+        [-0.73334607, 1.72870897, 0.15955448, -1.54338156, -0.84544607],
+        [-1.30284659, -0.75676422, 1.82499374, 1.85447871, -0.06901917]
+    ])
+
+    particles, interaction_table = generate_particles_and_interactions(custom_interaction_table)
 
     reset_button_rect = draw_button(win)
 
@@ -193,66 +201,43 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if reset_button_rect.collidepoint(event.pos):
-                    particles, interaction_table = generate_particles_and_interactions()
+                mouse_pos = event.pos
+                if reset_button_rect.collidepoint(mouse_pos):
+                    particles, interaction_table = generate_particles_and_interactions(custom_interaction_table)
                 else:
-                    for slider_name, slider in sliders.items():
-                        if slider['rect'].collidepoint(event.pos):
-                            dragging_slider = slider
-                            dragging_slider_name = slider_name
+                    for name, slider in sliders.items():
+                        if slider['rect'].collidepoint(mouse_pos):
+                            dragging_slider = slider['rect']
+                            dragging_slider_name = name
                             break
-
-                    for i, p in enumerate(particles):
-                        x, y, _, _, _, _ = p
-                        if np.hypot(event.pos[0] - x, event.pos[1] - y) <= PARTICLE_RADIUS:
-                            dragging_particle = p
-                            dragging_particle_index = i
-                            break
-
             elif event.type == pygame.MOUSEBUTTONUP:
                 dragging_slider = None
-                dragging_particle = None
-                dragging_particle_index = None
-
+                dragging_slider_name = None
             elif event.type == pygame.MOUSEMOTION:
-                if dragging_slider is not None:
-                    x, y = event.pos
-                    slider = dragging_slider
-                    min_val, max_val = slider['min'], slider['max']
-                    slider_width = slider['rect'].width
-                    value = min(max_val, max(min_val, (x - slider['rect'].x) * (max_val - min_val) / slider_width))
-                    sliders[dragging_slider_name]['value'] = value
+                if dragging_slider:
+                    mouse_x, _ = event.pos
+                    new_value = (mouse_x - dragging_slider.x) / dragging_slider.width * (sliders[dragging_slider_name]['max'] - sliders[dragging_slider_name]['min']) + sliders[dragging_slider_name]['min']
+                    new_value = max(sliders[dragging_slider_name]['min'], min(sliders[dragging_slider_name]['max'], new_value))
+                    sliders[dragging_slider_name]['value'] = new_value
                     if dragging_slider_name == 'FORCE_DIFF':
-                        FORCE_DIFF = value
+                        FORCE_DIFF = new_value
                     elif dragging_slider_name == 'AMPLIFIER':
-                        AMPLIFIER = value
+                        AMPLIFIER = new_value
                     elif dragging_slider_name == 'COLLISION_DAMPING':
-                        COLLISION_DAMPING = value
-                
-                if dragging_particle is not None:
-                    x, y = event.pos
-                    particles[dragging_particle_index, 0] = x
-                    particles[dragging_particle_index, 1] = y
+                        COLLISION_DAMPING = new_value
 
         win.fill((20, 20, 20))
 
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(calculate_forces, particles, interaction_table, AMPLIFIER, COLLISION_DAMPING)]
-            for future in futures:
-                future.result()
-
+        calculate_forces(particles, interaction_table, AMPLIFIER, COLLISION_DAMPING)
         update_particles(particles)
-
         draw_particles(particles, win)
 
-        draw_button(win)
+        for name, slider in sliders.items():
+            draw_slider(win, slider['rect'].x, slider['rect'].y, slider['rect'].width, slider['rect'].height, slider['value'], slider['min'], slider['max'], name)
 
-        for slider_name, slider in sliders.items():
-            draw_slider(win, slider['rect'].x, slider['rect'].y, slider['rect'].width, slider['rect'].height, slider['value'], slider['min'], slider['max'], slider_name)
+        reset_button_rect = draw_button(win)
 
         pygame.display.flip()
-
-        pygame.time.Clock().tick(CLOCK)
 
     pygame.quit()
 
