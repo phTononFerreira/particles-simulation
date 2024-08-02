@@ -30,6 +30,17 @@ NUM_PARTICLES = 500          # Número total de partículas na simulação
 CLOCK = 1500                 # Taxa de atualização da simulação em milissegundos (usado para controlar a velocidade do loop principal)
 ```
 
+## 📋 Exemplo Tabela de interações
+
+```
+Tabela de Interações:
+Tipo A: [ 1.90810062 -1.10723307  1.99949742 -1.24708745  0.52106206]
+Tipo B: [ 0.04896407 -1.45735016 -1.37156171 -1.93135077  1.66012771]
+Tipo C: [ 1.75441789  0.20509294 -1.07806344 -0.9455208  -1.26923439]
+Tipo D: [ 1.8635249  -0.61926611 -0.77973544 -0.41590037  0.66700497]
+Tipo E: [1.47509762 0.13548963 1.38185604 1.1742018  0.82176439]
+```
+
 
 ## 🖼️ Imagens
 
