@@ -111,7 +111,7 @@ def calculate_forces(particles, interaction_table, amplifier, collision_damping)
         particles[i, 3] += fy
 
         # Limitar a velocidade das partículas para evitar movimentos extremos
-        max_speed = 20  # ajuste conforme necessário
+        max_speed = 18  # ajuste conforme necessário
         speed = np.hypot(particles[i, 2], particles[i, 3])
         if speed > max_speed:
             particles[i, 2] = (particles[i, 2] / speed) * max_speed
