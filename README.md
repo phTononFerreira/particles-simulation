@@ -51,6 +51,7 @@ custom_interaction_table = np.array([
     [-1.30284659, -0.75676422, 1.82499374, 1.85447871, -0.06901917]
 ])
 ```
+![image](https://github.com/user-attachments/assets/03675045-f3ad-4cd4-bf74-cbbbd59fb504)
 
 ## 🖼️ Imagens
 ![image](https://github.com/user-attachments/assets/d02ba8e5-d372-44af-adab-324da2073f8c)
