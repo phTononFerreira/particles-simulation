@@ -23,15 +23,15 @@ pygame.display.set_caption("Simulação de Partículas - Pedro Henrique")
 FORCE_DIFF = 2
 AMPLIFIER = 1
 PARTICLE_RADIUS = 4
-SAFETY_MARGIN = 2
+SAFETY_MARGIN = 0
 DAMPING = 0.98
 COLLISION_DAMPING = 0.5
-INTERACTION_RADIUS = 150
+INTERACTION_RADIUS = 50
 
 NUM_PARTICLE_TYPES = 5
-NUM_PARTICLES = 500
+NUM_PARTICLES = 3000
 
-CLOCK = 1500
+CLOCK = 2000
 
 def generate_particles_and_interactions():
     particle_types = {}
@@ -72,7 +72,7 @@ def generate_particles_and_interactions():
 @jit(nopython=True, parallel=True)
 def calculate_forces(particles, interaction_table, amplifier, collision_damping):
     num_particles = particles.shape[0]
-    for i in prange(num_particles): 
+    for i in prange(num_particles):
         p1 = particles[i]
         x1, y1, vx1, vy1, type_index1, _ = p1
         fx, fy = 0.0, 0.0
@@ -85,6 +85,7 @@ def calculate_forces(particles, interaction_table, amplifier, collision_damping)
             dx = x2 - x1
             dy = y2 - y1
 
+            # Considerar bordas conectadas
             dx -= WIDTH * np.round(dx / WIDTH)
             dy -= HEIGHT * np.round(dy / HEIGHT)
 
@@ -98,19 +99,29 @@ def calculate_forces(particles, interaction_table, amplifier, collision_damping)
                 fx += force * dx / distance
                 fy += force * dy / distance
 
+            # Ajustar colisões para evitar saltos grandes
             if distance < 2 * (PARTICLE_RADIUS + SAFETY_MARGIN):
                 overlap = 2 * (PARTICLE_RADIUS + SAFETY_MARGIN) - distance
                 if distance > 0:
                     overlap_fraction = overlap / distance
-                    fx += collision_damping * overlap_fraction * (dx / distance)
-                    fy += collision_damping * overlap_fraction * (dy / distance)
-                    particles[i, 2] -= fx
-                    particles[i, 3] -= fy
-                    particles[j, 2] += fx
-                    particles[j, 3] += fy
+                    fx -= collision_damping * overlap_fraction * (dx / distance)
+                    fy -= collision_damping * overlap_fraction * (dy / distance)
 
+        # Aplicar as forças calculadas às partículas
         particles[i, 2] += fx
         particles[i, 3] += fy
+
+        # Limitar a velocidade das partículas para evitar movimentos extremos
+        max_speed = 50  # ajuste conforme necessário
+        speed = np.hypot(particles[i, 2], particles[i, 3])
+        if speed > max_speed:
+            particles[i, 2] = (particles[i, 2] / speed) * max_speed
+            particles[i, 3] = (particles[i, 3] / speed) * max_speed
+
+    # Aplicar posições atualizadas e considerar bordas
+    for i in prange(num_particles):
+        particles[i, 0] = (particles[i, 0] + particles[i, 2]) % WIDTH
+        particles[i, 1] = (particles[i, 1] + particles[i, 3]) % HEIGHT
 
 
 @jit(nopython=True)
